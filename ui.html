@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DC UI Toolkit</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #333;
+      font-size: 12px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    
+    #root {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+    }
+    
+    .sidebar {
+      width: 64px;
+      height: 100vh;
+      border-right: 1px solid #E5E5E5;
+      background-color: #FFFFFF;
+    }
+    
+    .sidebar-tab {
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .sidebar-tab.active {
+      background-color: #EDEDED;
+    }
+    
+    .sidebar-tab.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 4px;
+      height: 100%;
+      background-color: #000;
+    }
+    
+    .sidebar-tab-icon {
+      width: 24px;
+      height: 24px;
+      background-color: #000;
+      border-radius: 2px;
+    }
+    
+    .main-content {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    .header {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 16px;
+    }
+    
+    .plugin-name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    
+    .search-container {
+      position: relative;
+      width: 100%;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 32px;
+      border: 1px solid #E5E5E5;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #888;
+    }
+    
+    .component-list {
+      overflow-y: auto;
+      flex-grow: 1;
+      margin-top: 16px;
+      
+      /* 隐藏滚动条但保留功能 */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    /* 为 Webkit 浏览器隐藏滚动条 */
+    .component-list::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .component-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .component-item:hover {
+      background-color: #F5F5F5;
+    }
+    
+    .component-thumbnail {
+      width: 40px;
+      height: 40px;
+      background-color: #E5E5E5;
+      border-radius: 4px;
+      margin-right: 12px;
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #888;
+    }
+    
+    .component-info {
+      flex: 1;
+    }
+    
+    .component-name {
+      font-weight: 500;
+    }
+    
+    .component-type {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #888;
+      text-align: center;
+    }
+    
+    .empty-state-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    
+    .divider {
+      height: 1px;
+      background-color: #E5E5E5;
+      margin: 8px 0;
+    }
+    
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #888;
+      text-align: center;
+    }
+    
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #E5E5E5;
+      border-top: 2px solid #18A0FB;
+      border-radius: 50%;
+      margin-bottom: 8px;
+      animation: spin 1s linear infinite;
+    }
+    
+    .progress-bar-container {
+      width: 100%;
+      max-width: 200px;
+      height: 4px;
+      background-color: #E5E5E5;
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background-color: #18A0FB;
+      transition: width 0.3s ease;
+    }
+    
+    .load-more {
+      padding: 12px;
+      text-align: center;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+    // 初始化变量
+    let components = [];
+    let filteredComponents = [];
+    let searchTerm = '';
+    let isLoading = true;
+    let hasMoreComponents = true;
+    
+    // 在 DOM 加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取 DOM 元素
+      const componentList = document.getElementById('component-list');
+      const searchInput = document.getElementById('search-input');
+      
+      // 监听滚动事件，实现无限滚动
+      componentList.addEventListener('scroll', function() {
+        if (isLoading || !hasMoreComponents) return;
+        
+        const scrollHeight = componentList.scrollHeight;
+        const scrollTop = componentList.scrollTop;
+        const clientHeight = componentList.clientHeight;
+        
+        // 当滚动到底部时，加载更多组件
+        if (scrollHeight - scrollTop - clientHeight < 100) {
+          loadMoreComponents();
+        }
+      });
+      
+      // 加载更多组件
+      function loadMoreComponents() {
+        if (isLoading || !hasMoreComponents) return;
+        
+        isLoading = true;
+        
+        // 显示加载中
+        showLoadingMore();
+        
+        // 请求加载更多组件
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'load-more-components'
+          } 
+        }, '*');
+      }
+      
+      // 显示"加载更多"的加载状态
+      function showLoadingMore() {
+        // 检查是否已存在加载更多元素
+        let loadMoreEl = document.querySelector('.load-more');
+        
+        if (!loadMoreEl) {
+          loadMoreEl = document.createElement('div');
+          loadMoreEl.className = 'load-more';
+          loadMoreEl.innerHTML = `
+            <div class="loading">
+              <div class="loading-spinner"></div>
+              <p>加载更多组件...</p>
+            </div>
+          `;
+          componentList.appendChild(loadMoreEl);
+        }
+      }
+      
+      // 隐藏"加载更多"的加载状态
+      function hideLoadingMore() {
+        const loadMoreEl = document.querySelector('.load-more');
+        if (loadMoreEl) {
+          loadMoreEl.remove();
+        }
+      }
+      
+      // 显示加载状态
+      function showLoading(message, progress = 0) {
+        componentList.innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>${message}</p>
+            <div class="progress-bar-container">
+              <div class="progress-bar" style="width: ${progress * 100}%"></div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // 显示错误信息
+      function showError(message) {
+        componentList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">❌</div>
+            <p>${message}</p>
+            <button style="margin-top: 12px; padding: 6px 12px;" onclick="refreshComponents()">重试</button>
+          </div>
+        `;
+      }
+      
+      // 更新组件列表
+      function updateComponentList(clearFirst = true) {
+        if (clearFirst) {
+          componentList.innerHTML = '';
+        }
+        
+        // 如果没有组件
+        if (filteredComponents.length === 0) {
+          componentList.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">🔍</div>
+              <p>没有找到匹配的组件</p>
+            </div>
+          `;
+          return;
+        }
+        
+        // 如果是清空重建，则创建所有组件
+        if (clearFirst) {
+          filteredComponents.forEach(createComponentItem);
+        } else {
+          // 否则只添加新组件
+          const existingCount = componentList.querySelectorAll('.component-item').length;
+          filteredComponents.slice(existingCount).forEach(createComponentItem);
+        }
+      }
+      
+      // 创建组件项
+      function createComponentItem(component) {
+        const componentItem = document.createElement('div');
+        componentItem.className = 'component-item';
+        componentItem.dataset.id = component.id;
+        
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'component-thumbnail';
+        
+        // 如果有缩略图，设置背景图，否则使用占位符
+        if (component.thumbnail) {
+          thumbnail.style.backgroundImage = `url(data:image/png;base64,${component.thumbnail})`;
+        } else {
+          // 使用组件名称的第一个字符作为占位符
+          const firstChar = component.name.charAt(0).toUpperCase();
+          thumbnail.textContent = firstChar;
+        }
+        
+        const nameContainer = document.createElement('div');
+        nameContainer.className = 'component-info';
+        
+        const name = document.createElement('div');
+        name.className = 'component-name';
+        name.textContent = component.name;
+        
+        nameContainer.appendChild(name);
+        
+        // 显示组件类型
+        const type = document.createElement('div');
+        type.className = 'component-type';
+        type.textContent = component.type === 'COMPONENT' ? '组件' : 
+                           component.type === 'COMPONENT_SET' ? '组件集' : '组件';
+        nameContainer.appendChild(type);
+        
+        componentItem.appendChild(thumbnail);
+        componentItem.appendChild(nameContainer);
+        
+        // 添加点击事件
+        componentItem.addEventListener('click', () => {
+          parent.postMessage({ 
+            pluginMessage: { 
+              type: 'insert-component', 
+              componentId: component.id
+            } 
+          }, '*');
+        });
+        
+        componentList.appendChild(componentItem);
+      }
+      
+      // 刷新组件
+      window.refreshComponents = function() {
+        components = [];
+        filteredComponents = [];
+        showLoading('正在重新加载组件...');
+        
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'refresh-components'
+          } 
+        }, '*');
+      }
+      
+      // 监听来自插件的消息
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        
+        if (!msg) return;
+        
+        switch (msg.type) {
+          case 'loading-status':
+            showLoading(msg.message, msg.progress);
+            break;
+            
+          case 'components-page-loaded':
+            isLoading = false;
+            hideLoadingMore();
+            
+            // 添加新组件到列表
+            const newComponents = msg.components;
+            components = [...components, ...newComponents];
+            
+            // 应用搜索过滤
+            if (searchTerm.trim() === '') {
+              filteredComponents = [...components];
+            } else {
+              filteredComponents = components.filter(component => 
+                component.name.toLowerCase().includes(searchTerm.toLowerCase())
+              );
+            }
+            
+            // 更新组件列表
+            updateComponentList(msg.currentPage === 1);
+            
+            // 更新是否有更多组件
+            hasMoreComponents = msg.hasMore;
+            break;
+            
+          case 'component-inserted':
+            if (msg.success) {
+              console.log('组件插入成功:', msg.componentId);
+            } else {
+              console.error('组件插入失败:', msg.error);
+              alert('无法插入组件: ' + msg.error);
+            }
+            break;
+            
+          case 'initialization-error':
+            showError(msg.error);
+            break;
+            
+          case 'page-load-error':
+            isLoading = false;
+            hideLoadingMore();
+            alert('加载组件失败: ' + msg.error);
+            break;
+        }
+      };
+      
+      // 侧边栏 Tab 切换
+      const sidebarTabs = document.querySelectorAll('.sidebar-tab');
+      sidebarTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          sidebarTabs.forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+      
+      // 搜索功能
+      searchInput.addEventListener('input', function() {
+        searchTerm = this.value.toLowerCase();
+        
+        if (searchTerm.trim() === '') {
+          filteredComponents = [...components];
+        } else {
+          filteredComponents = components.filter(component => 
+            component.name.toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        updateComponentList();
+      });
+    });
+  </script>
+</head>
+<body>
+  <div id="root">
+    <div class="sidebar">
+      <div class="sidebar-tab active">
+        <div class="sidebar-tab-icon"></div>
+      </div>
+      <div class="sidebar-tab">
+        <div class="sidebar-tab-icon"></div>
+      </div>
+    </div>
+    <div class="main-content">
+      <div class="header">
+        <div class="plugin-name">DC UI Toolkit</div>
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" class="search-input" placeholder="搜索组件...">
+        </div>
+      </div>
+      <div id="component-list" class="component-list">
+        <!-- 组件列表将在这里动态生成 -->
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <p>正在加载组件...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

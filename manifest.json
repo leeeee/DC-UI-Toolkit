@@ -1,0 +1,23 @@
+{
+  "name": "DC UI Toolkit",
+  "id": "dc-ui-toolkit",
+  "api": "1.0.0",
+  "main": "code.js",
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
+  "editorType": [
+    "figma"
+  ],
+  "ui": "ui.html",
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  },
+  "menu": [
+    {
+      "name": "DC UI Toolkit",
+      "command": "open-plugin"
+    }
+  ]
+}
